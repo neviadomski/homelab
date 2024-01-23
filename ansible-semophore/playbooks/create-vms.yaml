@@ -1,0 +1,17 @@
+---
+- name: Play for deployment of all VMs from template
+  hosts: proxmox_all
+
+  become: true
+  tasks:
+    - proxmox_kvm:
+        # api_user    : root@pam
+        # api_password: secret
+        api_host    : 192.168.30.2
+        full        : true
+        agent       : true
+        vmid        : 900
+        newid       : 801
+        name        : test_vm  # The target VM name
+        node        : proxmox
+        timeout     : 300  # Note: The task can take a while. Adapt

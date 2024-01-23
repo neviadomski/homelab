@@ -1,0 +1,10 @@
+---
+- name: Play for keep servers up to date
+  hosts: k8s_all
+
+  become: true
+  tasks:
+    - name: Update-servers
+      ansible.builtin.apt:
+        upgrade: true
+        update_cache: true
