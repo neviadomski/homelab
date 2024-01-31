@@ -1,10 +1,32 @@
 ---
-- name: Play for keep servers up to date
+- name: Prepare all VMs for Kubernetes deploymentn
   hosts: k8s_all
 
   become: true
   tasks:
-    - name: Update-servers
+    - name: Set SSH key
+      ansible.posix.authorized_key:
+        user: "{{ hostvars[inventory_hostname]['ansible_user'] }}"
+        state: present
+        key: "{{ lookup('file', hostvars[inventory_hostname]['ssh_key']) }}"
+
+    - name: Update packages
       ansible.builtin.apt:
-        upgrade: true
         update_cache: true
+        upgrade: true
+
+    - name: Install packages
+      ansible.builtin.apt:
+        force_apt_get: true
+        name: "{{ packages }}"
+      vars:
+        packages:
+          - qemu-guest-agent
+          - sudo
+
+    - name: Add user to sudoers
+      ansible.builtin.shell:
+        cmd: usermod -a -G sudo sergei
+
+    - name: Reboot machine with all defaults
+      ansible.builtin.reboot:

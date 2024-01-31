@@ -1,0 +1,52 @@
+- name: "{{ '[' ~ module | upper ~ '] Create TEMP directory if it does not exist' }}"
+  ansible.builtin.file:
+    path: "{{ temp_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: "{{ '[' ~ module | upper ~ '] Download file and check checksum' }}"
+  ansible.builtin.get_url:
+    url: "{{ filelink[module] ~ filename[module] }}"
+    dest: "{{ temp_dir ~ filename[module] }}"
+    checksum:  "{{ 'sha256:' ~ filelink[module] ~ checksumname[module] }}"
+  when: checksum
+
+- name: "{{ '[' ~ module | upper ~ '] Download file (no checksum)' }}"
+  ansible.builtin.get_url:
+    url: "{{ filelink[module] ~ filename[module] }}"
+    dest: "{{ temp_dir ~ filename[module] }}"
+  when: 
+    - checksum is false
+    - archive
+
+- name: "{{ '[' ~ module | upper ~ '] Create install folder if not exist' }}"
+  ansible.builtin.file:
+    path: "{{ install_path[module] }}"
+    state: directory
+    mode: '0755'
+    
+- name: "{{ '[' ~ module | upper ~ '] Download file (no checksum) right to destination' }}"
+  ansible.builtin.get_url:
+    url: "{{ filelink[module] ~ filename[module] }}"
+    dest: "{{ install_path[module] ~ filename[module] }}"
+  when: 
+    - checksum is false
+    - archive is false 
+
+- name: "{{ '[' ~ module | upper ~ '] Unpack file ' }}"
+  ansible.builtin.unarchive:
+    src: "{{ temp_dir ~ filename[module] }}"
+    dest: "{{ install_path[module] }}"
+    remote_src: yes
+  when: 
+    - archive
+
+- name: "{{ '[' ~ module | upper ~ '] Custom Install ' }}"
+  ansible.builtin.shell:
+    cmd: "{{ install_cmd }}"
+  when: install_cmd is defined
+
+- name: "{{ '[' ~ module | upper ~ '] Remove TEMP folder' }}"
+  ansible.builtin.file:
+    path: "{{ temp_dir }}"
+    state: absent

@@ -1,17 +1,99 @@
 ---
-- name: Play for deployment of all VMs from template
-  hosts: proxmox_all
+- name: Deploy all VMs
+  hosts: proxmox_primary
 
   become: true
   tasks:
-    - proxmox_kvm:
-        # api_user    : root@pam
-        # api_password: secret
-        api_host    : 192.168.30.2
-        full        : true
-        agent       : true
-        vmid        : 900
-        newid       : 801
-        name        : test_vm  # The target VM name
-        node        : proxmox
-        timeout     : 300  # Note: The task can take a while. Adapt
+    - name: Clone VM from template
+      community.general.proxmox_kvm:
+        api_user: "{{ hostvars[inventory_hostname]['proxmox_user'] }}"
+        api_password: "{{ hostvars[inventory_hostname]['ansible_password'] }}"
+        api_host: "{{ hostvars[inventory_hostname]['ansible_host'] }}"
+        clone: ANY_VALUE
+        vmid: 900
+        newid: "{{ hostvars[item]['vmid'] }}"
+        name: "{{ item }}"
+        node: "{{ inventory_hostname }}"
+        timeout: 200
+      loop: "{{ groups['k8s_all'] }}"
+
+    - name: Get MAC address
+      ansible.builtin.shell: "{{ 'cat /etc/pve/qemu-server/' + hostvars[item]['vmid'] | string + '.conf | grep net0 | cut -d, -f1 | cut -d= -f2' }}"
+      loop: "{{ groups['k8s_all'] }}"
+      register: result
+      changed_when: true
+
+    - name: Save MAC address
+      delegate_to: "{{ item }}"
+      delegate_facts: true
+      ansible.builtin.set_fact:
+        mac: "{{ result.results | selectattr('item', 'equalto', item) | map(attribute='stdout') | first }}"
+      loop: "{{ groups['k8s_all'] }}"
+
+- name: Set static IPs and DNS resolver
+  hosts: pfsense
+
+  become: true
+  tasks:
+
+    - name: Create DHCP static mapping
+      pfsensible.core.pfsense_dhcp_static:
+        hostname: "{{ item }}"
+        descr: "Kubernetes node K{{ item | replace('k8s-k', '') }} (VM on Proxmox)"
+        macaddr: "{{ hostvars[item]['mac'] }}"
+        ipaddr: "{{ hostvars[item]['ansible_host'] }}"
+        netif: 'LAN'
+        state: present
+      loop: "{{ groups['k8s_all'] }}"
+
+
+- name: Continue Deploymnet
+  hosts: proxmox_primary
+
+  become: true
+  tasks:
+    - name: Move VMs to desired host
+      community.general.proxmox_kvm:
+        api_user: "{{ hostvars[inventory_hostname]['proxmox_user'] }}"
+        api_password: "{{ hostvars[inventory_hostname]['ansible_password'] }}"
+        api_host: "{{ hostvars[inventory_hostname]['ansible_host'] }}"
+        name: "{{ item }}"
+        node: "{{ hostvars[item]['node'] }}"
+        migrate: true
+        timeout: 300
+      loop: "{{ groups['k8s_all'] }}"
+
+    - name: Grow existing disk
+      community.general.proxmox_disk:
+        api_user: "{{ hostvars[inventory_hostname]['proxmox_user'] }}"
+        api_password: "{{ hostvars[inventory_hostname]['ansible_password'] }}"
+        api_host: "{{ hostvars[inventory_hostname]['ansible_host'] }}"
+        name: "{{ item }}"
+        disk: scsi0
+        size: 20G
+        state: resized
+      loop: "{{ groups['k8s_all'] }}"
+
+    - name: Update VM configurations
+      community.general.proxmox_kvm:
+        api_user: "{{ hostvars[inventory_hostname]['proxmox_user'] }}"
+        api_password: "{{ hostvars[inventory_hostname]['ansible_password'] }}"
+        api_host: "{{ hostvars[inventory_hostname]['ansible_host'] }}"
+        name: "{{ item }}"
+        node: "{{ hostvars[item]['node'] }}"
+        cores: "{{ hostvars[item]['cores'] }}"
+        memory: "{{ hostvars[item]['memory'] }}"
+        agent: true
+        onboot: true
+        update: true
+      loop: "{{ groups['k8s_all'] }}"
+
+    - name: Start VMs
+      community.general.proxmox_kvm:
+        api_user: "{{ hostvars[inventory_hostname]['proxmox_user'] }}"
+        api_password: "{{ hostvars[inventory_hostname]['ansible_password'] }}"
+        api_host: "{{ hostvars[inventory_hostname]['ansible_host'] }}"
+        name: "{{ item }}"
+        node: "{{ hostvars[item]['node'] }}"
+        state: started
+      loop: "{{ groups['k8s_all'] }}"

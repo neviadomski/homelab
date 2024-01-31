@@ -9,6 +9,7 @@ ansible-lint = "*"
 ansible-creator = "*"
 requests = "*"
 proxmoxer = "*"
+ara = {extras = ["server"], version = "*"}
 
 [dev-packages]
 

@@ -1,0 +1,2 @@
+ansible_user: sergei
+ssh_key: ~/.ssh/id_k8s.pub

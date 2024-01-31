@@ -1,0 +1,130 @@
+---
+- name: Init Kubernetes
+  hosts: k8s_primary
+  any_errors_fatal: true
+
+  tasks:
+    - name: Install kube-vip as control plane load balancer and init control plane
+      become: true
+      ansible.builtin.shell:
+        cmd: "{{ item }}"
+      loop:
+        - >
+          sudo ctr image pull ghcr.io/kube-vip/kube-vip:v{{ kube_vip_version }}; sudo ctr run --rm --net-host ghcr.io/kube-vip/kube-vip:v{{ kube_vip_version }} vip /kube-vip manifest daemonset
+          --interface lo
+          --address {{ controlPlaneEndpoint }}
+          --ddns
+          --enableLoadBalancer
+          --inCluster
+          --taint
+          --controlplane
+          --bgp
+          --localAS 65000
+          --bgpRouterID {{ hostvars[inventory_hostname]['ansible_host'] }}
+          --bgppeers {% for host in hostvars[inventory_hostname]['groups']['k8s_planes_backup'] %}{{hostvars[host]['ansible_host']}}:65000::false{{ "" if loop.last else "," }}{% endfor %}
+          | sudo tee /etc/kubernetes/manifests/kube-vip-ds.yaml
+
+      register: cmd_return
+      failed_when:
+        cmd_return.rc != 0
+
+    - name: Copy kubeadm init-config
+      become: true
+      ansible.builtin.copy:
+        src: /root/projects/homelab/init-config.yaml
+        dest: /home/sergei/init-config.yaml
+
+    - name: Install kube-vip as control plane load balncer init and install calico
+      become: true
+      ansible.builtin.shell:
+        cmd: "{{ item }}"
+      loop:
+        - sed -i "s/<<hostname>>/$(hostname -s)/g" /home/sergei/init-config.yaml
+        - sed -i "s/<<node-ip>>/$(hostname -I)/g" /home/sergei/init-config.yaml
+        - sed -i "s/<<controlPlaneEndpoint>>/{{ controlPlaneEndpoint }}/g" /home/sergei/init-config.yaml
+        - sed -i "s\<<serviceSubnet>>\{{ serviceSubnet }}\g" /home/sergei/init-config.yaml
+        - sed -i "s\<<podSubnet>>\{{ podSubnet }}\g" /home/sergei/init-config.yaml
+        - sed -i "s\<<nodeSubnet>>\{{ nodeSubnet }}\g" /home/sergei/init-config.yaml
+        - sed -i "s/<<domain>>/{{ domain }}/g" /home/sergei/init-config.yaml
+        - sed -i "s/<<kube_minor_version_short>>/{{ kube_minor_version_short }}/g" /home/sergei/init-config.yaml
+        - sed -i "s/<<cluster_name>>/{{ cluster_name }}/g" /home/sergei/init-config.yaml
+        - sudo kubeadm init --upload-certs --config=/home/sergei/init-config.yaml
+        - mkdir -p $HOME/.kube
+        - sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+        - sudo chown $(id -u):$(id -g) $HOME/.kube/config
+        - kubectl apply -f https://kube-vip.io/manifests/rbac.yaml
+        - kubectl apply -f /etc/kubernetes/manifests/kube-vip-ds.yaml
+        - kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v{{ calico_version }}/manifests/tigera-operator.yaml
+        - wget https://raw.githubusercontent.com/projectcalico/calico/v{{ calico_version }}/manifests/custom-resources.yaml
+        - "sudo sed -i 's\\cidr.*\\cidr: {{ podSubnet }}\\g' custom-resources.yaml"
+        - kubectl create -f custom-resources.yaml
+        - curl -L https://github.com/projectcalico/calico/releases/download/v{{ calico_version }}/calicoctl-linux-amd64 -o /usr/local/bin/kubectl-calico
+        - chmod +x /usr/local/bin/kubectl-calico
+      register: cmd_return
+      failed_when:
+        cmd_return.rc != 0
+
+    - name: Get join command
+      become: true
+      ansible.builtin.shell: kubeadm token create --print-join-command
+      register: cmd_result
+
+    - name: Save join command
+      ansible.builtin.set_fact:
+        join: "{{ cmd_result['stdout'] }}"
+        cacheable: true
+
+    - name: Get certificate
+      become: true
+      ansible.builtin.shell: sudo kubeadm init phase upload-certs --upload-certs
+      register: cmd_result
+
+    - name: Save join command
+      ansible.builtin.debug:
+        msg: "{{ cmd_result['stdout_lines'] | last }}"
+        # cacheable: true
+
+    - name: Save cetificate command
+      ansible.builtin.set_fact:
+        cert: "{{ cmd_result['stdout_lines'] | last }}"
+        cacheable: true
+
+- name: Join control planes
+  hosts: k8s_all
+  any_errors_fatal: true
+
+  tasks:
+
+
+   - name: Save join command
+     ansible.builtin.set_fact:
+        join: "{{ hostvars[groups['k8s_primary'] | first].join }}"
+        cert: "{{ hostvars[groups['k8s_primary'] | first].cert }}"
+        cacheable: true
+
+- name: Join control planes
+  hosts: k8s_planes_backup
+  any_errors_fatal: true
+
+  tasks:
+    - name: Join as control plane
+      become: true
+      ansible.builtin.shell:
+        cmd: "{{ item }}"
+      loop:
+        - "{{ join }}  --control-plane --certificate-key {{ cert }}"
+        - mkdir -p $HOME/.kube
+        - sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+        - sudo chown $(id -u):$(id -g) $HOME/.kube/config
+      register: cmd_return
+      failed_when: cmd_return.rc != 0
+
+- name: Join worker nodes
+  hosts: k8s_workers
+
+  tasks:
+    - name: Join as worker nodes
+      become: true
+      ansible.builtin.shell: "{{ join }}"
+      register: cmd_return
+      failed_when: cmd_return.rc != 0

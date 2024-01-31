@@ -1,0 +1,49 @@
+pfsense:
+  hosts:
+    192.168.30.1
+
+proxmox_all:
+  children:
+    proxmox_primary:
+    proxmox_support:
+
+proxmox_primary:
+  hosts:
+    proxmox:
+      ansible_host: 192.168.30.2
+
+proxmox_support:
+  hosts:
+    proxmox_backup:
+      ansible_host: 192.168.30.5
+    storage:
+      ansible_host: 192.168.30.3
+
+k8s_all:
+  children:
+    k8s_planes:
+    k8s_workers:
+
+k8s_planes:
+  children:
+    k8s_primary:
+    k8s_planes_backup:
+
+k8s_primary:
+  hosts:
+    k8s-k00:
+
+k8s_planes_backup:
+  hosts:
+    k8s-k05:
+    k8s-k08:
+
+k8s_workers:
+  hosts:
+    k8s-k01:
+    k8s-k02:
+    k8s-k03:
+    k8s-k04:
+    k8s-k06:
+    k8s-k07:
+    k8s-k09:

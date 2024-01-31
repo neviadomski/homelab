@@ -1,0 +1,5 @@
+vmid: 308
+node: proxmoxbackup
+cores: 2
+memory: 6144
+ansible_host: 192.168.30.58
