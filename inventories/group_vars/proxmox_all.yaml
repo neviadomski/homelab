@@ -1,0 +1,3 @@
+ansible_user: root
+proxmox_user: root@pam
+ansible_password: Sergeynev1#

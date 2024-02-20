@@ -32,7 +32,7 @@
         cmd_return.rc != 0
 
     - name: Install containerd
-      ansible.builtin.import_tasks: templates/download_and_install_module.yaml
+      ansible.builtin.import_tasks: ./tasks/download_and_install_module.yaml
       vars:
         module: containerd
         version: "{{ containerd_version }}"
@@ -40,7 +40,7 @@
         archive: true
 
     - name: Install containerd.service
-      ansible.builtin.import_tasks: templates/download_and_install_module.yaml
+      ansible.builtin.import_tasks: ./tasks/download_and_install_module.yaml
       vars:
         module: containerd_service
         version:
@@ -58,7 +58,7 @@
         cmd_return.rc != 0
 
     - name: Install runc
-      ansible.builtin.import_tasks: templates/download_and_install_module.yaml
+      ansible.builtin.import_tasks: ./tasks/download_and_install_module.yaml
       vars:
         module: runc
         version: "{{ runc_version }}"
@@ -76,7 +76,7 @@
         - dbus-user-session
 
     - name: Install cni
-      ansible.builtin.import_tasks: templates/download_and_install_module.yaml
+      ansible.builtin.import_tasks: ./tasks/download_and_install_module.yaml
       vars:
         module: cni
         version: "{{ cni_version }}"

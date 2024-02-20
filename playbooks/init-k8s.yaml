@@ -31,7 +31,7 @@
     - name: Copy kubeadm init-config
       become: true
       ansible.builtin.copy:
-        src: /root/projects/homelab/init-config.yaml
+        src: ./files/init-config.yaml
         dest: /home/sergei/init-config.yaml
 
     - name: Install kube-vip as control plane load balncer init and install calico
