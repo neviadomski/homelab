@@ -1,0 +1,6 @@
+[k8s-k01.vars]
+vmid = 301
+node = "proxmox"
+cores = 4
+memory = 30720
+ansible_host = "192.168.30.51"

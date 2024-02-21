@@ -1,5 +1,0 @@
-vmid: 305
-node: storage
-cores: 4
-memory: 6144
-ansible_host: 192.168.30.55

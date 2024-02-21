@@ -1,5 +1,0 @@
-vmid: 302
-node: proxmox
-cores: 4
-memory: 30720
-ansible_host: 192.168.30.52
