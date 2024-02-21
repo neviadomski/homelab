@@ -1,3 +1,5 @@
+# fmt: toml
+
 [all.vars]
 kube_version = "1.28"
 kube_minor_version_short = "1.28.7"

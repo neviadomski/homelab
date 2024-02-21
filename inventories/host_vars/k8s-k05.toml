@@ -1,3 +1,5 @@
+# fmt: toml
+
 [k8s-k05.vars]
 vmid = 305
 node = "storage"

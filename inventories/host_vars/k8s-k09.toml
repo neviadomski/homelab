@@ -1,3 +1,5 @@
+# fmt: toml
+
 [k8s-k09.vars]
 vmid = 309
 node = "proxmoxbackup"

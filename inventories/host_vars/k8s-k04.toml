@@ -1,3 +1,5 @@
+# fmt: toml
+
 [k8s-k04.vars]
 vmid = 304
 node = "proxmox"
