@@ -1,8 +1,0 @@
-# fmt: toml
-
-[k8s-k04.vars]
-vmid = 304
-node = "proxmox"
-cores = 4
-memory = 30720
-ansible_host = "192.168.30.54"
