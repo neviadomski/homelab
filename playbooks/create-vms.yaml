@@ -42,7 +42,7 @@
         descr: "Kubernetes node K{{ item | replace('k8s-k', '') }} (VM on Proxmox)"
         macaddr: "{{ hostvars[item]['mac'] }}"
         ipaddr: "{{ hostvars[item]['ansible_host'] }}"
-        netif: 'lan'
+        netif: 'LAN'
         state: present
       loop: "{{ groups['k8s_all'] }}"
 
