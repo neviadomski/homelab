@@ -1,0 +1,28 @@
+---
+- name: Build VM Template using packer
+  hosts: proxmox_primary
+
+  become: true
+  tasks:
+    - name: Stop VMs
+      community.general.proxmox_kvm:
+        api_user: "{{ hostvars[inventory_hostname]['proxmox_user'] }}"
+        api_password: "{{ hostvars[inventory_hostname]['ansible_password'] }}"
+        api_host: "{{ hostvars[inventory_hostname]['ansible_host'] }}"
+        name: "{{ item }}"
+        node: "{{ inventory_hostname }}"
+        state: stopped
+        force: yes
+        timeout: 200
+      loop: "{{ groups['k8s_all'] }}"
+
+    - name: Remove VMs
+      community.general.proxmox_kvm:
+        api_user: "{{ hostvars[inventory_hostname]['proxmox_user'] }}"
+        api_password: "{{ hostvars[inventory_hostname]['ansible_password'] }}"
+        api_host: "{{ hostvars[inventory_hostname]['ansible_host'] }}"
+        name: "{{ item }}"
+        node: "{{ inventory_hostname }}"
+        state: absent
+        timeout: 200
+      loop: "{{ groups['k8s_all'] }}"
