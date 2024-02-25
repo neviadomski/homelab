@@ -13,6 +13,15 @@ autoinstall:
   packages:
     - qemu-guest-agent
     - sudo
+    - openssh-server
+    - dbus
+    - dbus-user-session
+    - apt-transport-https
+    - ca-certificates
+    - curl
+    - gpg
+    - jq
+    - ipvsadm
   storage:
     layout:
       name: direct

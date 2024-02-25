@@ -1,4 +1,12 @@
 # Packer Template to create VM Template on Proxmox
+packer {
+  required_plugins {
+    name = {
+      version = "~> 1"
+      source  = "github.com/hashicorp/proxmox"
+    }
+  }
+}
 
 # Variable Definitions
 variable "proxmox_api_url" {
@@ -51,10 +59,13 @@ source "proxmox-iso" "k8s-template" {
     }
 
     # VM CPU Settings
-    cores = "2"
+    sockets = 2
+    cores = 2
+    cpu_type = "host"
+    os = "l26"
 
     # VM Memory Settings
-    memory = "4096"
+    memory = "6144"
 
     # VM Network Settings
     network_adapters {
@@ -76,7 +87,7 @@ source "proxmox-iso" "k8s-template" {
         "autoinstall ds=nocloud-net\\;s=http://{{ .HTTPIP }}:{{ .HTTPPort }}/ ---<wait>",
         "<f10><wait>"
     ]
-    boot = "c"
+    // boot = "virtio0"
     boot_wait = "5s"
     unmount_iso = true
 
