@@ -15,6 +15,7 @@
         force: yes
         timeout: 200
       loop: "{{ groups['k8s_all'] }}"
+      when: result.status != "absent"
 
     - name: Remove VMs
       community.general.proxmox_kvm:
@@ -26,3 +27,4 @@
         state: absent
         timeout: 200
       loop: "{{ groups['k8s_all'] }}"
+      when: result.status != "absent"
